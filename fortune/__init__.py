@@ -128,7 +128,7 @@ POSSIBILITY OF SUCH DAMAGE.
 import random
 import os
 import sys
-import cPickle as pickle
+import pickle5 as pickle
 
 from grizzled.cmdline import CommandLineParser
 
@@ -139,12 +139,12 @@ from grizzled.cmdline import CommandLineParser
 __all__ = ['main', 'get_random_fortune', 'make_fortune_data_file']
 
 # Info about the module
-__version__   = '1.0'
-__author__    = 'Brian M. Clapper'
-__email__     = 'bmc@clapper.org'
-__url__       = 'http://software.clapper.org/fortune/'
+__version__ = '1.0'
+__author__ = 'Brian M. Clapper'
+__email__ = 'bmc@clapper.org'
+__url__ = 'http://software.clapper.org/fortune/'
 __copyright__ = '2008-2011 Brian M. Clapper'
-__license__   = 'BSD-style license'
+__license__ = 'BSD-style license'
 
 # ---------------------------------------------------------------------------
 # Internal Constants
@@ -152,19 +152,11 @@ __license__   = 'BSD-style license'
 
 _PICKLE_PROTOCOL = 2
 
+
 # ---------------------------------------------------------------------------
 # Functions
 # ---------------------------------------------------------------------------
 
-def random_int(start, end):
-    try:
-        # Use SystemRandom, if it's available, since it's likely to have
-        # more entropy.
-        r = random.SystemRandom()
-    except:
-        r = random
-
-    return r.randint(start, end)
 
 def get_random_fortune(fortune_file):
     """
@@ -180,19 +172,20 @@ def get_random_fortune(fortune_file):
     """
     fortune_index_file = fortune_file + '.dat'
     if not os.path.exists(fortune_index_file):
-        raise ValueError, 'Can\'t find file "%s"' % fortune_index_file
+        raise ValueError('Can\'t find file' + fortune_index_file)
 
-    fortuneIndex = open(fortune_index_file)
-    data = pickle.load(fortuneIndex)
-    fortuneIndex.close()
-    randomRecord = random_int(0, len(data) - 1)
-    (start, length) = data[randomRecord]
+    fortune_index = open(fortune_index_file, 'rb')
+    data = pickle.load(fortune_index)
+    fortune_index.close()
+    random_record = random.randint(0, len(data) - 1)
+    (start, length) = data[random_record]
 
-    f = open(fortune_file, 'rU')
+    f = open(fortune_file)
     f.seek(start)
-    fortuneCookie = f.read(length)
+    fortune_cookie = f.read(length)
     f.close()
-    return fortuneCookie
+    return fortune_cookie
+
 
 def _read_fortunes(fortune_file):
     """ Yield fortunes as lists of lines """
@@ -201,19 +194,20 @@ def _read_fortunes(fortune_file):
     pos = 0
     for line in fortune_file:
         if line == "%\n":
-            if pos == 0: # "%" at top of file. Skip it.
+            if pos == 0:  # "%" at top of file. Skip it.
                 continue
             yield (start, pos - start, result)
             result = []
             start = None
         else:
-            if start == None:
+            if start is None:
                 start = pos
             result.append(line)
         pos += len(line)
 
     if result:
         yield (start, pos - start, result)
+
 
 def make_fortune_data_file(fortune_file, quiet=False):
     """
@@ -227,23 +221,23 @@ def make_fortune_data_file(fortune_file, quiet=False):
     """
     fortune_index_file = fortune_file + '.dat'
     if not quiet:
-        print 'Updating "%s" from "%s"...' % (fortune_index_file, fortune_file)
+        print('Updating "%s" from "%s"...' % (fortune_index_file, fortune_file))
 
     data = []
-    shortest = sys.maxint
+    shortest = 1000000000
     longest = 0
-    for start, length, fortune in _read_fortunes(open(fortune_file, 'rU')):
+    for start, length, fortune in _read_fortunes(open(fortune_file, 'r')):
         data += [(start, length)]
         shortest = min(shortest, length)
         longest = max(longest, length)
 
-    fortuneIndex = open(fortune_index_file, 'wb')
-    pickle.dump(data, fortuneIndex, _PICKLE_PROTOCOL)
-    fortuneIndex.close()
+    fortune_index = open(fortune_index_file, 'wb')
+    pickle.dump(data, fortune_index, _PICKLE_PROTOCOL)
+    fortune_index.close()
 
     if not quiet:
-        print 'Processed %d fortunes.\nLongest: %d\nShortest %d' %\
-              (len(data), longest, shortest)
+        print('Processed %d fortunes.\nLongest: %d\nShortest %d' % (len(data), longest, shortest))
+
 
 def main():
     """
@@ -266,23 +260,23 @@ def main():
     options, args = arg_parser.parse_args(sys.argv)
     if len(args) == 2:
         fortune_file = args[1]
-
     else:
         try:
             fortune_file = os.environ['FORTUNE_FILE']
         except KeyError:
-            arg_parser.show_usage('Missing fortune file.')
+            arg_parser.die_with_usage('Missing fortune file.\n')
 
     try:
         if options.show_version:
-            print 'fortune, version %s' % __version__
+            print('fortune, version %s' % __version__)
         elif options.update:
             make_fortune_data_file(fortune_file)
         else:
             sys.stdout.write(get_random_fortune(fortune_file))
-    except ValueError, msg:
-        print >> sys.stderr, msg
+    except ValueError as msg:
+        print(msg, file=sys.stderr)
         sys.exit(1)
+
 
 if __name__ == '__main__':
     main()
